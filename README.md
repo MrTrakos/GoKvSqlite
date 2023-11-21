@@ -40,5 +40,5 @@ func main() {
 ``` Keys, Get, Set, Exists, Delete ```
   
 * for simple porpuses.
-
+* it accept all type of storing, int, int64, string, map, slices, etc.
   
