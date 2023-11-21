@@ -71,18 +71,37 @@ func (s *KVStore) Keys(pattern string) ([]string, error) {
 	defer s.mu.RUnlock()
 
 	var keys []string
-	rows, err := s.db.Query("SELECT key FROM kv WHERE key LIKE ?", pattern)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var key string
-		if err := rows.Scan(&key); err != nil {
+	if pattern == "" {
+		// If no pattern is provided, retrieve all keys
+		rows, err := s.db.Query("SELECT key FROM kv")
+		if err != nil {
 			return nil, err
 		}
-		keys = append(keys, key)
+		defer rows.Close()
+
+		for rows.Next() {
+			var key string
+			if err := rows.Scan(&key); err != nil {
+				return nil, err
+			}
+			keys = append(keys, key)
+		}
+	} else {
+		// If a pattern is provided, use it in the SQL query
+		rows, err := s.db.Query("SELECT key FROM kv WHERE key LIKE ?", pattern)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var key string
+			if err := rows.Scan(&key); err != nil {
+				return nil, err
+			}
+			keys = append(keys, key)
+		}
 	}
 
 	return keys, nil
