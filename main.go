@@ -2,8 +2,7 @@ package store
 
 import (
 	"database/sql"
-	"fmt"
-	"reflect"
+	"encoding/json"
 	"sync"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -40,17 +39,14 @@ func (s *KVStore) Set(key string, value interface{}) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Use reflection to get the underlying type of 'value'
-	val := reflect.ValueOf(value)
-	switch val.Kind() {
-	case reflect.String, reflect.Int, reflect.Float64, reflect.Bool:
-		// If the type is supported, insert or replace into the database
-		_, err := s.db.Exec("INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)", key, value)
+	// Use encoding/json to convert value to a JSON string
+	jsonValue, err := json.Marshal(value)
+	if err != nil {
 		return err
-	default:
-		// If the type is not supported, return an error
-		return fmt.Errorf("unsupported type: %T", value)
 	}
+
+	_, err = s.db.Exec("INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)", key, string(jsonValue))
+	return err
 }
 
 func (s *KVStore) Get(key string) (string, error) {
@@ -61,6 +57,8 @@ func (s *KVStore) Get(key string) (string, error) {
 	err := s.db.QueryRow("SELECT value FROM kv WHERE key = ?", key).Scan(&value)
 	return value, err
 }
+
+// ... (rest of the methods remain unchanged)
 
 func (s *KVStore) Delete(key string) error {
 	s.mu.Lock()
