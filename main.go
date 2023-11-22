@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"fmt"
+	"reflect"
 	"sync"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -36,8 +37,20 @@ func Client(dbPath string) (*KVStore, error) {
 }
 
 func (s *KVStore) Set(key string, value interface{}) error {
-	_, err := s.db.Exec("INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)", key, fmt.Sprint(value))
-	return err
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Use reflection to get the underlying type of 'value'
+	val := reflect.ValueOf(value)
+	switch val.Kind() {
+	case reflect.String, reflect.Int, reflect.Float64, reflect.Bool:
+		// If the type is supported, insert or replace into the database
+		_, err := s.db.Exec("INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)", key, value)
+		return err
+	default:
+		// If the type is not supported, return an error
+		return fmt.Errorf("unsupported type: %T", value)
+	}
 }
 
 func (s *KVStore) Get(key string) (string, error) {
